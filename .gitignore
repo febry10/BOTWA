@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+
+# WhatsApp sessions
+wa_sessions/
+sessions/
+
+# Logs
+logs/
+
+# Backups
+backups/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Auth state
+auth_info_baileys/

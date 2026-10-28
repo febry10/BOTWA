@@ -1,0 +1,18 @@
+<%- include('layout', { title: title, body: `
+<div class="card">
+  <h3>⚙️ Per-Group Settings</h3>
+  ${groupSettings.length === 0 ? '<div class="empty">Belum ada pengaturan grup.</div>' : `
+  <table>
+    <thead><tr><th>Group</th><th>WA Group ID</th><th>Custom Settings</th></tr></thead>
+    <tbody>
+      ${groupSettings.map(gs => `
+        <tr>
+          <td><strong>${gs.group_name || '-'}</strong></td>
+          <td style="font-family:monospace;font-size:12px;">${gs.wa_group_id}</td>
+          <td><pre style="background:rgba(0,0,0,0.3);padding:8px;border-radius:6px;font-size:11px;color:#aaa;max-width:400px;overflow-x:auto;">${JSON.stringify(typeof gs.settings_json === 'string' ? JSON.parse(gs.settings_json) : gs.settings_json, null, 2)}</pre></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`}
+</div>
+` }) %>

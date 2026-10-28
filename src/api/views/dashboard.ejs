@@ -1,0 +1,31 @@
+<%- include('layout', { title: title, body: `
+<div class="stats-grid">
+  <div class="stat-card"><div class="label">Groups</div><div class="value blue">${stats.groups}</div></div>
+  <div class="stat-card"><div class="label">Members</div><div class="value blue">${stats.members}</div></div>
+  <div class="stat-card"><div class="label">Uptime</div><div class="value green">${stats.uptime}</div></div>
+  <div class="stat-card"><div class="label">Messages Processed</div><div class="value">${stats.processed}</div></div>
+  <div class="stat-card"><div class="label">Messages Deleted</div><div class="value red">${stats.deleted}</div></div>
+  <div class="stat-card"><div class="label">Active Warnings</div><div class="value yellow">${stats.warnings}</div></div>
+  <div class="stat-card"><div class="label">Muted Users</div><div class="value red">${stats.muted}</div></div>
+  <div class="stat-card"><div class="label">Banned Users</div><div class="value red">${stats.banned}</div></div>
+</div>
+
+<div class="card">
+  <h3>📋 Recent Admin Activity</h3>
+  ${recentLogs.length === 0 ? '<div class="empty">Belum ada aktivitas admin.</div>' : `
+  <table>
+    <thead><tr><th>Time</th><th>Admin</th><th>Group</th><th>Command</th><th>Result</th></tr></thead>
+    <tbody>
+      ${recentLogs.map(log => `
+        <tr>
+          <td>${new Date(log.created_at).toLocaleString('id-ID')}</td>
+          <td>${log.admin_name || 'Unknown'}</td>
+          <td>${log.group_name || '-'}</td>
+          <td><span class="badge blue">${log.command}</span></td>
+          <td>${log.result || '-'}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`}
+</div>
+` }) %>

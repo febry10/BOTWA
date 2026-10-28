@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    container_name: groupguard-bot
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${API_PORT:-3000}:3000"
+    volumes:
+      - ./sessions:/app/sessions
+      - ./backups:/app/backups
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - botwa-net
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: groupguard-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-botwa}
+      POSTGRES_USER: ${DB_USER:-botwa}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-botwa_secret_password}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-botwa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - botwa-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: groupguard-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redisdata:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - botwa-net
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  botwa-net:
+    driver: bridge

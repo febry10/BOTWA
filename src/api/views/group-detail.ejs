@@ -1,0 +1,46 @@
+<%- include('layout', { title: title, body: `
+<div class="stats-grid">
+  <div class="stat-card"><div class="label">Members</div><div class="value blue">${stats.members}</div></div>
+  <div class="stat-card"><div class="label">Warnings</div><div class="value yellow">${stats.warnings}</div></div>
+  <div class="stat-card"><div class="label">Muted</div><div class="value red">${stats.muted}</div></div>
+  <div class="stat-card"><div class="label">Banned</div><div class="value red">${stats.banned}</div></div>
+  <div class="stat-card"><div class="label">Deleted</div><div class="value red">${stats.deletedMessages}</div></div>
+  <div class="stat-card"><div class="label">Spam</div><div class="value yellow">${stats.spamDetected}</div></div>
+</div>
+
+<div class="card">
+  <h3>👥 Members (${members.length})</h3>
+  <table>
+    <thead><tr><th>Name</th><th>WA ID</th><th>Role</th><th>Joined</th></tr></thead>
+    <tbody>
+      ${members.map(m => `
+        <tr>
+          <td>${m.name || '-'}</td>
+          <td style="font-family:monospace;font-size:12px;">${m.wa_id}</td>
+          <td><span class="badge ${m.role === 'OWNER' ? 'purple' : m.role === 'ADMIN' ? 'blue' : 'green'}">${m.role}</span></td>
+          <td>${new Date(m.joined_at).toLocaleDateString('id-ID')}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3>🛡️ Recent Violations</h3>
+  ${recentViolations.length === 0 ? '<div class="empty">Belum ada pelanggaran.</div>' : `
+  <table>
+    <thead><tr><th>Time</th><th>User</th><th>Type</th><th>Severity</th><th>Action</th></tr></thead>
+    <tbody>
+      ${recentViolations.map(v => `
+        <tr>
+          <td>${new Date(v.created_at).toLocaleString('id-ID')}</td>
+          <td>${v.name || v.wa_id}</td>
+          <td><span class="badge yellow">${v.type}</span></td>
+          <td><span class="badge ${v.severity === 'HIGH' || v.severity === 'CRITICAL' ? 'red' : 'yellow'}">${v.severity}</span></td>
+          <td><span class="badge ${v.action_taken === 'MUTE' || v.action_taken === 'KICK' || v.action_taken === 'BAN' ? 'red' : 'blue'}">${v.action_taken}</span></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`}
+</div>
+` }) %>

@@ -1,0 +1,18 @@
+<%- include('layout', { title: title, body: `
+<div class="card">
+  <h3>👤 All Tracked Users (${members.length})</h3>
+  ${members.length === 0 ? '<div class="empty">Belum ada user yang terdaftar.</div>' : `
+  <table>
+    <thead><tr><th>Name</th><th>WA ID</th><th>Registered</th></tr></thead>
+    <tbody>
+      ${members.map(m => `
+        <tr>
+          <td>${m.name || '-'}</td>
+          <td style="font-family:monospace;font-size:12px;">${m.wa_id}</td>
+          <td>${new Date(m.created_at).toLocaleDateString('id-ID')}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`}
+</div>
+` }) %>

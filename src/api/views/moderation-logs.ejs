@@ -1,0 +1,58 @@
+<%- include('layout', { title: title, body: `
+<div class="card">
+  <h3>🔇 Active Mutes (${muted.length})</h3>
+  ${muted.length === 0 ? '<div class="empty">Tidak ada user yang sedang di-mute.</div>' : `
+  <table>
+    <thead><tr><th>User</th><th>Group</th><th>Reason</th><th>Until</th></tr></thead>
+    <tbody>
+      ${muted.map(m => `
+        <tr>
+          <td>${m.user_name || m.wa_id}</td>
+          <td>${m.group_name || '-'}</td>
+          <td>${m.reason || '-'}</td>
+          <td>${new Date(m.mute_until).toLocaleString('id-ID')}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`}
+</div>
+
+<div class="card">
+  <h3>⚠️ Active Warnings (${warnings.length})</h3>
+  ${warnings.length === 0 ? '<div class="empty">Tidak ada warning aktif.</div>' : `
+  <table>
+    <thead><tr><th>User</th><th>Group</th><th>Reason</th><th>Severity</th><th>Date</th></tr></thead>
+    <tbody>
+      ${warnings.map(w => `
+        <tr>
+          <td>${w.user_name || w.wa_id}</td>
+          <td>${w.group_name || '-'}</td>
+          <td>${w.reason || '-'}</td>
+          <td><span class="badge ${w.severity === 'HEAVY' ? 'red' : w.severity === 'MEDIUM' ? 'yellow' : 'green'}">${w.severity}</span></td>
+          <td>${new Date(w.created_at).toLocaleString('id-ID')}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`}
+</div>
+
+<div class="card">
+  <h3>🚨 Recent Violations (${violations.length})</h3>
+  ${violations.length === 0 ? '<div class="empty">Belum ada pelanggaran.</div>' : `
+  <table>
+    <thead><tr><th>Time</th><th>User</th><th>Group</th><th>Type</th><th>Severity</th><th>Action</th></tr></thead>
+    <tbody>
+      ${violations.map(v => `
+        <tr>
+          <td>${new Date(v.created_at).toLocaleString('id-ID')}</td>
+          <td>${v.user_name || v.wa_id}</td>
+          <td>${v.group_name || '-'}</td>
+          <td><span class="badge blue">${v.type}</span></td>
+          <td><span class="badge ${v.severity === 'HIGH' || v.severity === 'CRITICAL' ? 'red' : 'yellow'}">${v.severity}</span></td>
+          <td><span class="badge ${v.action_taken === 'MUTE' || v.action_taken === 'BAN' ? 'red' : 'yellow'}">${v.action_taken}</span></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`}
+</div>
+` }) %>

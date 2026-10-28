@@ -1,0 +1,21 @@
+<%- include('layout', { title: title, body: `
+<div class="card">
+  <h3>👥 All Groups</h3>
+  ${groups.length === 0 ? '<div class="empty">Belum ada grup yang terdaftar.</div>' : `
+  <table>
+    <thead><tr><th>Name</th><th>Members</th><th>Warnings</th><th>Muted</th><th>Banned</th><th>Actions</th></tr></thead>
+    <tbody>
+      ${groups.map(g => `
+        <tr>
+          <td><strong>${g.name || g.wa_group_id}</strong></td>
+          <td>${g.stats.members}</td>
+          <td><span class="badge yellow">${g.stats.warnings}</span></td>
+          <td><span class="badge red">${g.stats.muted}</span></td>
+          <td><span class="badge red">${g.stats.banned}</span></td>
+          <td><a href="/groups/${g.id}" style="color:#00d4aa;text-decoration:none;">Detail →</a></td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>`}
+</div>
+` }) %>
