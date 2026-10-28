@@ -14,6 +14,7 @@ import { groupRoutes } from './routes/groups.js';
 import { memberRoutes } from './routes/members.js';
 import { moderationRoutes } from './routes/moderation.js';
 import { settingsRoutes } from './routes/settings.js';
+import { qrRoutes } from './routes/qr.js';
 import pino from 'pino';
 
 const logger = pino({ name: 'api-server' });
@@ -72,6 +73,7 @@ export async function startApiServer(): Promise<void> {
   app.use('/members', memberRoutes);
   app.use('/moderation', moderationRoutes);
   app.use('/settings', settingsRoutes);
+  app.use('/qr', qrRoutes);
 
   // ── Error handler ──
   app.use(errorHandler);

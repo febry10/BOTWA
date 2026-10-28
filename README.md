@@ -44,6 +44,7 @@ Bot WhatsApp Group production-ready, modular, aman, dan berkinerja tinggi yang d
 - Node.js >= 20.0.0
 - PostgreSQL Server >= 14.0
 - Redis Server (Opsional, disarankan)
+- FFmpeg (wajib untuk fitur stiker GIF/video; sudah termasuk di image Docker)
 - Docker & Docker Compose (Opsional, untuk kemudahan deployment)
 
 ### 2. Setup Manual
@@ -95,6 +96,48 @@ Prefix default: `!` (bisa diubah per grup menggunakan `!set prefix <char>`).
 - `!info` — Informasi umum bot
 - `!stats` — Statistik moderasi grup
 - `!status` — Status kesehatan & uptime bot
+
+### 🎨 Stiker (Setiap Member)
+- `!sticker` / `!s` — Kirim gambar/GIF/video dengan caption `!s`, atau reply media dengan `!s` (video/GIF maks 30 detik, diambil 8 detik pertama)
+- `!sticker NamaPack|Author` — Stiker dengan nama pack & author sendiri
+- `!toimg` — Reply stiker untuk mengubahnya jadi gambar
+- `!take NamaPack|Author` — Reply stiker untuk mengganti nama pack/author
+- `!ttp <teks>` — Ubah teks jadi stiker
+
+### 🎉 Seru-seruan di Grup
+- `!dadu [jumlah]` — Lempar dadu (1-10 dadu)
+- `!coinflip` — Lempar koin
+- `!pilih a, b, c` — Bot memilihkan secara acak
+- `!truth` / `!dare` — Main truth or dare
+- `!jodoh @a @b` — Cek kecocokan (tanpa mention = dipasangkan acak)
+- `!siapa <pertanyaan>` — Bot menunjuk member acak
+- `!rate <sesuatu>` — Nilai 0-100
+- `!apakah <pertanyaan>` / `!kapan <pertanyaan>` — Kerang ajaib
+- `!quote` — Kata-kata motivasi
+- `!tagall [pesan]` / `!hidetag [pesan]` — Tag semua member (Moderator ke atas)
+
+### 🎮 Level, Rank & RPG
+Setiap pesan memberi XP (cooldown 1 menit per member, jadi tidak bisa di-spam). Bot **tidak** membalas setiap pesan — pengumuman hanya muncul saat member naik level atau mencapai rank baru (🌱 Warga Baru → 🌿 Anggota Aktif → 🧭 Petualang → ⚔️ Pejuang → 🛡️ Ksatria → 🔥 Jagoan → 💎 Master → 👑 Legenda → 🐉 Mitos).
+- `!level [@user]` — Level, XP, koin, rank, dan peringkat di grup
+- `!leaderboard` / `!top` — 10 member teraktif
+- `!daily` — Hadiah harian (koin + XP)
+- `!berburu` — Petualangan acak (cooldown 10 menit)
+- `!duel @user [taruhan]` — Duel simulasi; dengan taruhan, lawan harus `!terima` / `!tolak`
+- `!leveling on|silent|off` — Admin: aktifkan / tanpa pengumuman / matikan
+
+### 🤖 AI Chatbot, Downloader & TTS
+- `!ai <pesan>` — Ngobrol santai, curhat, atau tanya apa saja. Bot juga menjawab saat di-tag atau pesannya di-reply. Butuh `GEMINI_API_KEY` (gratis di https://aistudio.google.com/apikey) atau `OPENAI_API_KEY` di `.env`
+- `!resetai` — Hapus riwayat obrolan AI
+- `!dl <link>` — Unduh video TikTok, Instagram Reels, atau YouTube (maks 720p, 50 MB). Butuh `yt-dlp` (sudah termasuk di image Docker)
+- `!ytmp3 <link>` — Unduh audio mp3
+- `!tts [kode bahasa] <teks>` — Teks jadi voice note (contoh: `!tts en good morning`)
+
+### 📅 Pengingat Acara (Admin)
+- `!addreminder 30m | Rapat dimulai` — relatif (m/menit, j/jam, d/hari)
+- `!addreminder 19:30 | Main bareng` / `!addreminder besok 08:00 | ...` / `!addreminder 2026-12-31 23:00 | ...`
+- `!addreminder harian 05:00 | ...` / `!addreminder mingguan jumat 20:00 | ...` — berulang
+- Tambahkan `notag` di akhir agar member tidak di-tag
+- `!reminders` — daftar pengingat, `!delreminder <nomor>` — hapus
 
 ### 🛡️ Moderasi (Moderator / Admin)
 - `!warn @user [alasan]` — Memberikan peringatan ke pengguna

@@ -38,6 +38,7 @@ export interface ModerationContext {
   groupId: number;
   userRole: Role;
   text: string;
+  messageType: string;
   mentions: string[];
   settings: GroupSettings;
 }
@@ -56,6 +57,29 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
   const noAction: ModerationResult = { action: 'NONE', reason: null, handled: false };
 
   try {
+    // ── Active mute (enforced even when auto-moderation is off) ──
+    const muteStatus = await checkMuteStatus(ctx.userId, ctx.groupId);
+    if (muteStatus.muted) {
+      const deleted = await deleteMessage(ctx.groupJid, ctx.message.key!);
+      if (deleted) {
+        logger.info({ userId: ctx.userId, groupId: ctx.groupId }, 'Deleted muted user message');
+      } else {
+        logger.warn({ userId: ctx.userId, groupId: ctx.groupId }, 'Failed to delete muted user message');
+      }
+      await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'DELETE', 'User sedang di-mute');
+      return { action: 'DELETE', reason: 'Muted', handled: true };
+    }
+
+    // If mute just expired, send notification
+    if (muteStatus.expired) {
+      const mention = jidToMention(ctx.senderJid);
+      await sendMessage(
+        ctx.groupJid,
+        renderTemplate(MUTE_MESSAGES.autoUnmuted, { user: mention }),
+        [ctx.senderJid]
+      );
+    }
+
     // Skip if auto-moderation is disabled
     if (!ctx.settings.auto_moderation) return noAction;
 
@@ -75,31 +99,8 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
     const blacklisted = await isBlacklisted(ctx.userId, ctx.groupId);
     if (blacklisted) {
       await deleteMessage(ctx.groupJid, ctx.message.key!);
-      await logMessageAction(ctx.groupId, ctx.userId, 'text', ctx.text, 'DELETE', 'User dalam blacklist');
+      await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'DELETE', 'User dalam blacklist');
       return { action: 'DELETE', reason: 'Blacklist', handled: true };
-    }
-
-    // ── Priority 4: Check active mute (soft mute enforcement) ──
-    const muteStatus = await checkMuteStatus(ctx.userId, ctx.groupId);
-    if (muteStatus.muted) {
-      const deleted = await deleteMessage(ctx.groupJid, ctx.message.key!);
-      if (deleted) {
-        logger.info({ userId: ctx.userId, groupId: ctx.groupId }, 'Deleted muted user message');
-      } else {
-        logger.warn({ userId: ctx.userId, groupId: ctx.groupId }, 'Failed to delete muted user message');
-      }
-      await logMessageAction(ctx.groupId, ctx.userId, 'text', ctx.text, 'DELETE', 'User sedang di-mute');
-      return { action: 'DELETE', reason: 'Muted', handled: true };
-    }
-
-    // If mute just expired, send notification
-    if (muteStatus.expired) {
-      const mention = jidToMention(ctx.senderJid);
-      await sendMessage(
-        ctx.groupJid,
-        renderTemplate(MUTE_MESSAGES.autoUnmuted, { user: mention }),
-        [ctx.senderJid]
-      );
     }
 
     // ── Dry run mode check ──
@@ -125,6 +126,9 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
         return { action: spamResult.action === 'MUTE' ? 'MUTE' : 'WARN', reason: 'Spam', handled: true };
       }
     }
+
+    // Remaining checks only apply to messages with text
+    if (!ctx.text) return noAction;
 
     // ── Priority 6: Anti-flood ──
     if (ctx.settings.flood.enabled) {
@@ -162,10 +166,10 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
     }
 
     // ── Priority 7: Anti-link ──
-    if (ctx.settings.links.enabled) {
+    if (ctx.settings.links.enabled || ctx.settings.invite.enabled) {
       const linkResult = await detectLinks(ctx.text, ctx.groupId, ctx.settings);
 
-      // Check invite links first (always blocked unless configured otherwise)
+      // Check invite links first
       if (linkResult.hasInvite && ctx.settings.invite.enabled) {
         await recordViolation(ctx.userId, ctx.groupId, 'INVITE', 'HIGH', ctx.text, ctx.settings);
 
@@ -181,27 +185,31 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
         return { action: 'WARN', reason: `Invite link: ${linkResult.inviteType}`, handled: true };
       }
 
-      // Check regular links
-      if (linkResult.hasLink && !linkResult.isWhitelisted) {
-        const mode = ctx.settings.links.mode;
+      // Check regular links: blocked domains are always removed, other links depend on mode
+      const mode = ctx.settings.links.mode;
+      const violates = ctx.settings.links.enabled && linkResult.hasLink &&
+        (linkResult.isBlocked || (mode !== 'OFF' && !linkResult.isWhitelisted));
 
-        if (mode !== 'OFF') {
-          await recordViolation(ctx.userId, ctx.groupId, 'LINK', 'LOW', ctx.text, ctx.settings);
+      if (violates) {
+        await recordViolation(ctx.userId, ctx.groupId, 'LINK', 'LOW', ctx.text, ctx.settings);
 
-          if (!dryRun) {
-            await deleteMessage(ctx.groupJid, ctx.message.key!);
+        if (!dryRun) {
+          await deleteMessage(ctx.groupJid, ctx.message.key!);
+          if (mode === 'MUTE') {
+            await handleMute(ctx, '30m', 'Mengirim link yang tidak diizinkan');
+          } else {
             const matchedUrl = linkResult.urls.join(', ') || 'Link Terlarang';
             await handleWarning(ctx, 'Link tidak diizinkan di grup ini', matchedUrl);
           }
-
-          return { action: 'WARN', reason: 'Link', handled: true };
         }
+
+        return { action: mode === 'MUTE' ? 'MUTE' : 'WARN', reason: 'Link', handled: true };
       }
     }
 
     // ── Priority 8: Profanity ──
     if (ctx.settings.profanity.enabled) {
-      const profanityResult = await detectProfanity(ctx.text, ctx.groupId);
+      const profanityResult = await detectProfanity(ctx.text, ctx.groupId, ctx.settings.profanity.allowed_words);
       if (profanityResult.detected && profanityResult.matchedWord) {
         await recordProfanityViolation(
           ctx.userId, ctx.groupId,
@@ -265,7 +273,7 @@ async function handleWarning(
     [ctx.senderJid]
   );
 
-  await logMessageAction(ctx.groupId, ctx.userId, 'text', ctx.text, 'WARN', reason);
+  await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'WARN', reason);
 
   // Check if warning limit reached → auto mute
   if (result.activeCount >= ctx.settings.warning.limit) {
@@ -297,7 +305,7 @@ async function handleMute(ctx: ModerationContext, duration: string, reason: stri
       [ctx.senderJid]
     );
 
-    await logMessageAction(ctx.groupId, ctx.userId, 'text', ctx.text, 'MUTE', reason);
+    await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'MUTE', reason);
   }
 }
 
@@ -315,7 +323,7 @@ async function handleKick(ctx: ModerationContext, reason: string): Promise<void>
       renderTemplate(COMMAND_MESSAGES.kicked, { user: mention, reason }),
       [ctx.senderJid]
     );
-    await logMessageAction(ctx.groupId, ctx.userId, 'text', ctx.text, 'KICK', reason);
+    await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'KICK', reason);
   } else {
     logger.warn({ userId: ctx.userId, groupId: ctx.groupId }, 'Failed to kick user (bot may not be admin)');
   }

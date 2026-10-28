@@ -10,6 +10,12 @@ export const DEFAULT_GROUP_SETTINGS = {
   profanity: {
     enabled: true,
     action: 'WARN' as const,
+    allowed_words: [] as string[],
+  },
+
+  leveling: {
+    enabled: true,
+    announce: true,
   },
 
   spam: {

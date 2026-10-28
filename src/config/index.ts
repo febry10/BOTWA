@@ -43,6 +43,19 @@ export const config = {
     dir: process.env.LOG_DIR || './logs',
   },
 
+  ai: {
+    provider: (process.env.AI_PROVIDER || (process.env.OPENAI_API_KEY && !process.env.GEMINI_API_KEY ? 'openai' : 'gemini')) as 'gemini' | 'openai',
+    geminiApiKey: process.env.GEMINI_API_KEY || '',
+    openaiApiKey: process.env.OPENAI_API_KEY || '',
+    model: process.env.AI_MODEL || '',
+  },
+
+  downloader: {
+    ytdlpPath: process.env.YTDLP_PATH || 'yt-dlp',
+    maxSizeMb: parseInt(process.env.DOWNLOAD_MAX_MB || '50', 10),
+    cookiesFile: process.env.YTDLP_COOKIES || '',
+  },
+
   backup: {
     enabled: process.env.BACKUP_ENABLED === 'true',
     dir: process.env.BACKUP_DIR || './backups',

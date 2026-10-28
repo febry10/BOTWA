@@ -19,18 +19,24 @@ export async function blacklistUser(
   const db = getDb();
   const permanent = !banUntil;
 
-  await db('banned_users')
-    .insert({
-      user_id: userId,
-      group_id: groupId,
-      banned_by: bannedBy,
-      reason,
-      ban_until: banUntil,
-      permanent,
-      active: true,
-    })
-    .onConflict(['user_id', 'group_id'])
-    .ignore();
+  const values = {
+    banned_by: bannedBy,
+    reason,
+    ban_until: banUntil,
+    permanent,
+    active: true,
+  };
+
+  const existing = await db('banned_users')
+    .where({ user_id: userId, group_id: groupId })
+    .orderBy('id', 'desc')
+    .first();
+
+  if (existing) {
+    await db('banned_users').where({ id: existing.id }).update(values);
+  } else {
+    await db('banned_users').insert({ user_id: userId, group_id: groupId, ...values });
+  }
 
   logger.info({ userId, groupId, permanent, banUntil, reason }, 'User blacklisted');
 }

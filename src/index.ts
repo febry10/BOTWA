@@ -6,6 +6,7 @@ dotenv.config();
 
 import pino from 'pino';
 import { CronJob } from 'cron';
+import { processDueReminders } from './bot/reminders.js';
 import { config } from './config/index.js';
 import { getDb, checkDbHealth, runMigrations, closeDb } from './database/connection.js';
 import { connectToWhatsApp, disconnectBot } from './bot/client.js';
@@ -96,6 +97,16 @@ function startScheduledTasks(): void {
   });
   banCron.start();
 
+  // Send due reminders every minute
+  const reminderCron = new CronJob('* * * * *', async () => {
+    try {
+      await processDueReminders();
+    } catch (error) {
+      logger.error({ err: error }, 'Reminder cron failed');
+    }
+  });
+  reminderCron.start();
+
   // Cleanup in-memory spam tracker every 2 minutes
   const cleanupCron = new CronJob('*/2 * * * *', () => {
     cleanupMemoryTracker();
@@ -151,6 +162,6 @@ process.on('unhandledRejection', (reason) => {
 
 // ── Start ──
 main().catch((error) => {
-  logger.fatal({ error }, 'Fatal error during startup');
+  logger.fatal({ err: error }, 'Fatal error during startup');
   process.exit(1);
 });
