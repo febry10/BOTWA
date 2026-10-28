@@ -18,8 +18,11 @@ export function registerGeneralCommands(): void {
     description: 'Tampilkan daftar command',
     minRole: Role.MEMBER,
     handler: async (ctx: CommandContext) => {
-      const msg = renderTemplate(COMMAND_MESSAGES.help, { prefix: ctx.settings.prefix || '!' });
-      await sendMessage(ctx.groupJid, msg);
+      const prefix = ctx.settings.prefix || '!';
+      await sendMessage(ctx.groupJid, renderTemplate(COMMAND_MESSAGES.help, { prefix }));
+      if (ctx.userRole >= Role.MODERATOR) {
+        await sendMessage(ctx.groupJid, renderTemplate(COMMAND_MESSAGES.helpAdmin, { prefix }));
+      }
     },
   });
 

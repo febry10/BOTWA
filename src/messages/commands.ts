@@ -41,8 +41,6 @@ Ketik *{prefix}help* untuk bantuan.`,
 {prefix}apakah pertanyaan — Kerang ajaib
 {prefix}kapan pertanyaan — Ramalan waktu
 {prefix}quote — Kata-kata hari ini
-{prefix}tagall pesan — Tag semua member (mod)
-{prefix}hidetag pesan — Tag semua tanpa terlihat (mod)
 
 🎮 *Level & RPG*
 {prefix}level [@user] — Level, XP & rank
@@ -51,7 +49,6 @@ Ketik *{prefix}help* untuk bantuan.`,
 {prefix}berburu — Berpetualang cari koin & XP
 {prefix}duel @user [taruhan] — Duel simulasi
 {prefix}terima / {prefix}tolak — Jawab tantangan duel
-{prefix}leveling on/off/silent — Atur leveling (admin)
 
 🤖 *AI & Media*
 {prefix}ai pertanyaan — Ngobrol dengan AI (atau tag/reply bot)
@@ -61,9 +58,19 @@ Ketik *{prefix}help* untuk bantuan.`,
 {prefix}tts [kode bahasa] teks — Teks jadi suara
 
 📅 *Pengingat*
-{prefix}addreminder waktu | pesan — Tambah pengingat (admin)
 {prefix}reminders — Daftar pengingat
-{prefix}delreminder nomor — Hapus pengingat (admin)
+
+ℹ️ Perintah admin hanya ditampilkan untuk admin grup.`,
+
+  helpAdmin: `🔐 *PERINTAH ADMIN*
+━━━━━━━━━━━━━━━━━━━━
+
+📢 *Tag & Pengingat*
+{prefix}tagall pesan — Tag semua member
+{prefix}hidetag pesan — Tag semua tanpa terlihat
+{prefix}addreminder waktu | pesan — Tambah pengingat
+{prefix}delreminder nomor — Hapus pengingat
+{prefix}leveling on/off/silent — Atur leveling
 
 🛡️ *Moderasi*
 {prefix}warn @user — Warning
