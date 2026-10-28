@@ -23,6 +23,27 @@ Ketik *{prefix}help* untuk bantuan.`,
 {prefix}status — Status bot
 {prefix}profile @user — Profil user
 
+🎨 *Stiker*
+{prefix}sticker / {prefix}s — Gambar/GIF/video jadi stiker (kirim dengan caption atau reply media)
+{prefix}sticker pack|author — Stiker dengan nama pack sendiri
+{prefix}toimg — Stiker jadi gambar (reply stiker)
+{prefix}take pack|author — Ganti nama pack stiker (reply stiker)
+{prefix}ttp teks — Teks jadi stiker
+
+🎉 *Seru-seruan*
+{prefix}dadu [jumlah] — Lempar dadu
+{prefix}coinflip — Lempar koin
+{prefix}pilih a, b, c — Pilihkan acak
+{prefix}truth / {prefix}dare — Truth or dare
+{prefix}jodoh @a @b — Cek kecocokan
+{prefix}siapa pertanyaan — Tunjuk member acak
+{prefix}rate sesuatu — Beri nilai 0-100
+{prefix}apakah pertanyaan — Kerang ajaib
+{prefix}kapan pertanyaan — Ramalan waktu
+{prefix}quote — Kata-kata hari ini
+{prefix}tagall pesan — Tag semua member (mod)
+{prefix}hidetag pesan — Tag semua tanpa terlihat (mod)
+
 🛡️ *Moderasi*
 {prefix}warn @user — Warning
 {prefix}warnings @user — Lihat warning

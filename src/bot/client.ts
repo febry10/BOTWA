@@ -11,6 +11,7 @@ import makeWASocket, {
   proto,
   WAMessageKey,
   Browsers,
+  GroupMetadata,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
@@ -24,8 +25,22 @@ const logger = pino({ level: config.logging.level, name: 'wa-client' });
 
 let sock: WASocket | null = null;
 let retryCount = 0;
-const MAX_RETRIES = 5;
+const MAX_BACKOFF_MS = 60000;
 const startTime = Date.now();
+
+let latestQr: string | null = null;
+let connectionState: 'connecting' | 'open' | 'close' = 'close';
+
+const GROUP_METADATA_TTL_MS = 5 * 60 * 1000;
+const groupMetadataCache = new Map<string, { data: GroupMetadata; expiresAt: number }>();
+
+export function getConnectionInfo(): { state: 'connecting' | 'open' | 'close'; qr: string | null } {
+  return { state: connectionState, qr: latestQr };
+}
+
+export function invalidateGroupMetadata(groupJid: string): void {
+  groupMetadataCache.delete(groupJid);
+}
 
 /**
  * Get the WhatsApp socket instance.
@@ -90,14 +105,18 @@ export async function connectToWhatsApp(
     keepAliveIntervalMs: 30000,
     markOnlineOnConnect: true,
     generateHighQualityLinkPreview: false,
+    cachedGroupMetadata: async (jid) => groupMetadataCache.get(jid)?.data,
   });
 
   // ── Connection Update Handler ──
   sock.ev.on('connection.update', async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
+    if (connection) connectionState = connection;
+
     if (qr) {
-      logger.info('QR code generated. Please scan with WhatsApp:');
+      latestQr = qr;
+      logger.info('QR code generated. Please scan with WhatsApp (or open /qr on the dashboard):');
       qrcode.generate(qr, { small: true });
     }
 
@@ -111,9 +130,9 @@ export async function connectToWhatsApp(
         'Connection closed'
       );
 
-      if (shouldReconnect && retryCount < MAX_RETRIES) {
+      if (shouldReconnect) {
         retryCount++;
-        const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+        const delay = Math.min(1000 * Math.pow(2, retryCount), MAX_BACKOFF_MS);
         logger.info({ delay, retryCount }, 'Reconnecting...');
         await new Promise(r => setTimeout(r, delay));
         await connectToWhatsApp(onMessage, onGroupParticipantsUpdate);
@@ -123,13 +142,12 @@ export async function connectToWhatsApp(
         retryCount = 0;
         await new Promise(r => setTimeout(r, 2000));
         await connectToWhatsApp(onMessage, onGroupParticipantsUpdate);
-      } else {
-        logger.error({ retryCount, MAX_RETRIES }, 'Max retries reached. Please restart the bot manually.');
       }
     }
 
     if (connection === 'open') {
       retryCount = 0;
+      latestQr = null;
       logger.info('Connected to WhatsApp successfully!');
     }
   });
@@ -148,8 +166,15 @@ export async function connectToWhatsApp(
     }
   });
 
+  sock.ev.on('groups.update', (updates) => {
+    for (const u of updates) {
+      if (u.id) invalidateGroupMetadata(u.id);
+    }
+  });
+
   // ── Group Participants Update Handler ──
   sock.ev.on('group-participants.update', async (update) => {
+    invalidateGroupMetadata(update.id);
     try {
       await onGroupParticipantsUpdate(sock!, {
         id: update.id,
@@ -267,11 +292,15 @@ export async function demoteParticipant(
 /**
  * Get group metadata (name, participants, admins, etc.).
  */
-export async function getGroupMetadata(groupJid: string) {
+export async function getGroupMetadata(groupJid: string): Promise<GroupMetadata | null> {
+  const cached = groupMetadataCache.get(groupJid);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
   if (!sock) return null;
 
   try {
-    return await sock.groupMetadata(groupJid);
+    const data = await sock.groupMetadata(groupJid);
+    groupMetadataCache.set(groupJid, { data, expiresAt: Date.now() + GROUP_METADATA_TTL_MS });
+    return data;
   } catch (error) {
     logger.error({ error, groupJid }, 'Failed to get group metadata');
     return null;
@@ -285,14 +314,17 @@ export async function isBotAdmin(groupJid: string): Promise<boolean> {
   const metadata = await getGroupMetadata(groupJid);
   if (!metadata || !sock) return false;
 
-  const botJid = sock.user?.id;
-  if (!botJid) return false;
+  const botIds = [sock.user?.id, sock.user?.lid]
+    .filter((id): id is string => !!id)
+    .map(id => id.replace(/@.*$/, '').replace(/:\d+/, ''));
+  if (botIds.length === 0) return false;
 
-  const botNumber = botJid.replace(/@.*$/, '').replace(/:\d+/, '');
-  return metadata.participants.some(
-    p => p.id.replace(/@.*$/, '').replace(/:\d+/, '') === botNumber &&
-         (p.admin === 'admin' || p.admin === 'superadmin')
-  );
+  return metadata.participants.some(p => {
+    const ids = [p.id, p.lid, p.phoneNumber]
+      .filter((id): id is string => !!id)
+      .map(id => id.replace(/@.*$/, '').replace(/:\d+/, ''));
+    return ids.some(id => botIds.includes(id)) && (p.admin === 'admin' || p.admin === 'superadmin');
+  });
 }
 
 /**

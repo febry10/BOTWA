@@ -65,7 +65,8 @@ export async function checkDbHealth(): Promise<boolean> {
 export async function runMigrations(): Promise<void> {
   const distMigrations = path.resolve(process.cwd(), 'dist/database/migrations');
   const srcMigrations = path.resolve(process.cwd(), 'src/database/migrations');
-  const isDist = fs.existsSync(distMigrations);
+  // Use compiled migrations only when running the compiled build (tsx/dev uses the .ts sources)
+  const isDist = import.meta.url.endsWith('.js') && fs.existsSync(distMigrations);
   const migrationsDir = isDist ? distMigrations : srcMigrations;
 
   try {
@@ -97,7 +98,7 @@ export async function runMigrations(): Promise<void> {
       }
     }
   } catch (error) {
-    logger.error({ error, migrationsDir }, 'Migration failed');
+    logger.error({ err: error, migrationsDir }, 'Migration failed');
     throw error;
   }
 }

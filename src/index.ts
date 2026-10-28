@@ -151,6 +151,6 @@ process.on('unhandledRejection', (reason) => {
 
 // ── Start ──
 main().catch((error) => {
-  logger.fatal({ error }, 'Fatal error during startup');
+  logger.fatal({ err: error }, 'Fatal error during startup');
   process.exit(1);
 });

@@ -11,6 +11,7 @@ import { jidToMention } from '../../utils/jid.js';
 import { getGroupAdmins, ensureUser, ensureMembership, updateMemberRole, getUserRole } from '../../services/member.service.js';
 import { addToWhitelist, removeFromWhitelist, getWhitelistedUsers } from '../../services/whitelist.service.js';
 import { blacklistUser, unblacklistUser, getBlacklistedUsers } from '../../services/blacklist.service.js';
+import { resolveRole } from '../roles.js';
 import { logAdminAction } from '../../services/logging.service.js';
 
 export function registerAdminCommands(): void {
@@ -139,7 +140,7 @@ export function registerAdminCommands(): void {
         return;
       }
       const targetUserId = await ensureUser(targetJid);
-      const targetRole = await getUserRole(targetUserId, ctx.groupId);
+      const targetRole = await resolveRole(ctx.groupJid, targetJid, targetUserId, ctx.groupId);
       if (targetRole >= ctx.userRole) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.cannotModerate);
         return;

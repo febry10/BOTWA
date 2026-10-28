@@ -38,6 +38,7 @@ export interface ModerationContext {
   groupId: number;
   userRole: Role;
   text: string;
+  messageType: string;
   mentions: string[];
   settings: GroupSettings;
 }
@@ -75,7 +76,7 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
     const blacklisted = await isBlacklisted(ctx.userId, ctx.groupId);
     if (blacklisted) {
       await deleteMessage(ctx.groupJid, ctx.message.key!);
-      await logMessageAction(ctx.groupId, ctx.userId, 'text', ctx.text, 'DELETE', 'User dalam blacklist');
+      await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'DELETE', 'User dalam blacklist');
       return { action: 'DELETE', reason: 'Blacklist', handled: true };
     }
 
@@ -88,7 +89,7 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
       } else {
         logger.warn({ userId: ctx.userId, groupId: ctx.groupId }, 'Failed to delete muted user message');
       }
-      await logMessageAction(ctx.groupId, ctx.userId, 'text', ctx.text, 'DELETE', 'User sedang di-mute');
+      await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'DELETE', 'User sedang di-mute');
       return { action: 'DELETE', reason: 'Muted', handled: true };
     }
 
@@ -126,6 +127,9 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
       }
     }
 
+    // Remaining checks only apply to messages with text
+    if (!ctx.text) return noAction;
+
     // ── Priority 6: Anti-flood ──
     if (ctx.settings.flood.enabled) {
       const floodResult = detectFlood(ctx.text, ctx.senderJid, ctx.groupJid, ctx.mentions.length, ctx.settings);
@@ -162,10 +166,10 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
     }
 
     // ── Priority 7: Anti-link ──
-    if (ctx.settings.links.enabled) {
+    if (ctx.settings.links.enabled || ctx.settings.invite.enabled) {
       const linkResult = await detectLinks(ctx.text, ctx.groupId, ctx.settings);
 
-      // Check invite links first (always blocked unless configured otherwise)
+      // Check invite links first
       if (linkResult.hasInvite && ctx.settings.invite.enabled) {
         await recordViolation(ctx.userId, ctx.groupId, 'INVITE', 'HIGH', ctx.text, ctx.settings);
 
@@ -181,21 +185,25 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
         return { action: 'WARN', reason: `Invite link: ${linkResult.inviteType}`, handled: true };
       }
 
-      // Check regular links
-      if (linkResult.hasLink && !linkResult.isWhitelisted) {
-        const mode = ctx.settings.links.mode;
+      // Check regular links: blocked domains are always removed, other links depend on mode
+      const mode = ctx.settings.links.mode;
+      const violates = ctx.settings.links.enabled && linkResult.hasLink &&
+        (linkResult.isBlocked || (mode !== 'OFF' && !linkResult.isWhitelisted));
 
-        if (mode !== 'OFF') {
-          await recordViolation(ctx.userId, ctx.groupId, 'LINK', 'LOW', ctx.text, ctx.settings);
+      if (violates) {
+        await recordViolation(ctx.userId, ctx.groupId, 'LINK', 'LOW', ctx.text, ctx.settings);
 
-          if (!dryRun) {
-            await deleteMessage(ctx.groupJid, ctx.message.key!);
+        if (!dryRun) {
+          await deleteMessage(ctx.groupJid, ctx.message.key!);
+          if (mode === 'MUTE') {
+            await handleMute(ctx, '30m', 'Mengirim link yang tidak diizinkan');
+          } else {
             const matchedUrl = linkResult.urls.join(', ') || 'Link Terlarang';
             await handleWarning(ctx, 'Link tidak diizinkan di grup ini', matchedUrl);
           }
-
-          return { action: 'WARN', reason: 'Link', handled: true };
         }
+
+        return { action: mode === 'MUTE' ? 'MUTE' : 'WARN', reason: 'Link', handled: true };
       }
     }
 
@@ -265,7 +273,7 @@ async function handleWarning(
     [ctx.senderJid]
   );
 
-  await logMessageAction(ctx.groupId, ctx.userId, 'text', ctx.text, 'WARN', reason);
+  await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'WARN', reason);
 
   // Check if warning limit reached → auto mute
   if (result.activeCount >= ctx.settings.warning.limit) {
@@ -297,7 +305,7 @@ async function handleMute(ctx: ModerationContext, duration: string, reason: stri
       [ctx.senderJid]
     );
 
-    await logMessageAction(ctx.groupId, ctx.userId, 'text', ctx.text, 'MUTE', reason);
+    await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'MUTE', reason);
   }
 }
 
@@ -315,7 +323,7 @@ async function handleKick(ctx: ModerationContext, reason: string): Promise<void>
       renderTemplate(COMMAND_MESSAGES.kicked, { user: mention, reason }),
       [ctx.senderJid]
     );
-    await logMessageAction(ctx.groupId, ctx.userId, 'text', ctx.text, 'KICK', reason);
+    await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'KICK', reason);
   } else {
     logger.warn({ userId: ctx.userId, groupId: ctx.groupId }, 'Failed to kick user (bot may not be admin)');
   }

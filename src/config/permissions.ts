@@ -25,6 +25,27 @@ export const COMMAND_PERMISSIONS: Record<string, Role> = {
   status: Role.MEMBER,
   profile: Role.MEMBER,
 
+  // Sticker
+  sticker: Role.MEMBER,
+  toimg: Role.MEMBER,
+  take: Role.MEMBER,
+  ttp: Role.MEMBER,
+
+  // Fun
+  dadu: Role.MEMBER,
+  coinflip: Role.MEMBER,
+  pilih: Role.MEMBER,
+  truth: Role.MEMBER,
+  dare: Role.MEMBER,
+  jodoh: Role.MEMBER,
+  siapa: Role.MEMBER,
+  rate: Role.MEMBER,
+  apakah: Role.MEMBER,
+  kapan: Role.MEMBER,
+  quote: Role.MEMBER,
+  tagall: Role.MODERATOR,
+  hidetag: Role.MODERATOR,
+
   // ── Moderation (MODERATOR) ──
   warn: Role.MODERATOR,
   warning: Role.MODERATOR,

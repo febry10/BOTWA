@@ -15,7 +15,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Install pg_dump for backups
-RUN apk add --no-cache postgresql-client
+RUN apk add --no-cache postgresql-client ffmpeg font-dejavu
 
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev

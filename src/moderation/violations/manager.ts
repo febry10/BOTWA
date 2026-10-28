@@ -1,6 +1,7 @@
 /**
  * Violation Manager — Records violations and triggers escalation.
  */
+import { createHash } from 'crypto';
 import { getDb } from '../../database/connection.js';
 import { GroupSettings } from '../../config/defaults.js';
 import { getEscalation, getSeverityAction, EscalationResult } from './escalation.js';
@@ -33,7 +34,7 @@ export async function recordViolation(
     severity,
     message_content: null, // Don't store content by default for privacy
     content_hash: messageContent
-      ? require('crypto').createHash('sha256').update(messageContent).digest('hex')
+      ? createHash('sha256').update(messageContent).digest('hex')
       : null,
     action_taken: 'NONE', // Will be updated after action is taken
   });
@@ -86,7 +87,7 @@ export async function recordProfanityViolation(
     type: 'PROFANITY',
     severity: severityMap[profanitySeverity] || 'MEDIUM',
     content_hash: messageContent
-      ? require('crypto').createHash('sha256').update(messageContent).digest('hex')
+      ? createHash('sha256').update(messageContent).digest('hex')
       : null,
     action_taken: 'NONE',
   });

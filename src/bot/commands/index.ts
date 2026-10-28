@@ -2,7 +2,7 @@
  * Command Registry & Parser — Handles command routing, permission checking, and rate limiting.
  */
 import { WASocket, proto } from '@whiskeysockets/baileys';
-import { Role, hasPermission, roleToString } from '../../config/permissions.js';
+import { Role, COMMAND_PERMISSIONS } from '../../config/permissions.js';
 import { GroupSettings } from '../../config/defaults.js';
 import { checkCommandRate } from '../../moderation/spam/detector.js';
 import { deleteMessage, sendMessage } from '../client.js';
@@ -18,6 +18,8 @@ import { registerGroupCommands } from './group.js';
 import { registerAdminCommands } from './admin.js';
 import { registerConfigCommands } from './config.js';
 import { registerProfileCommands } from './profile.js';
+import { registerStickerCommands } from './sticker.js';
+import { registerFunCommands } from './fun.js';
 
 import pino from 'pino';
 
@@ -61,6 +63,20 @@ export function registerCommand(def: CommandDefinition): void {
 }
 
 /**
+ * Look up a command by name or alias.
+ */
+export function getCommand(name: string): CommandDefinition | undefined {
+  return commands.get(name);
+}
+
+/**
+ * Get all registered commands (unique definitions).
+ */
+export function getRegisteredCommands(): CommandDefinition[] {
+  return [...new Set(commands.values())];
+}
+
+/**
  * Initialize all command modules.
  */
 export function initializeCommands(): void {
@@ -72,6 +88,8 @@ export function initializeCommands(): void {
   registerAdminCommands();
   registerConfigCommands();
   registerProfileCommands();
+  registerStickerCommands();
+  registerFunCommands();
 
   logger.info({ commandCount: commands.size }, 'Commands initialized');
 }
@@ -116,7 +134,8 @@ export async function handleCommand(
   if (!cmd) return false;
 
   // Permission check
-  if (!hasPermission(userRole, cmd.name)) {
+  const requiredRole = COMMAND_PERMISSIONS[cmd.name] ?? cmd.minRole;
+  if (userRole < requiredRole) {
     await sendMessage(groupJid, ERROR_MESSAGES.notAdmin);
     return true;
   }

@@ -16,6 +16,7 @@ import { issueWarning, getActiveWarningCount, resetWarnings } from '../../servic
 import { muteUser, unmuteUser, getMuteInfo } from '../../services/mute.service.js';
 import { ensureUser, ensureMembership, getUserIdByWaId, getUserRole, removeMember } from '../../services/member.service.js';
 import { blacklistUser, unblacklistUser } from '../../services/blacklist.service.js';
+import { resolveRole } from '../roles.js';
 import { logAdminAction } from '../../services/logging.service.js';
 
 export function registerModerationCommands(): void {
@@ -36,7 +37,7 @@ export function registerModerationCommands(): void {
       await ensureMembership(targetUserId, ctx.groupId);
 
       // Check if target is protected
-      const targetRole = await getUserRole(targetUserId, ctx.groupId);
+      const targetRole = await resolveRole(ctx.groupJid, targetJid, targetUserId, ctx.groupId);
       if (targetRole >= ctx.userRole) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.cannotModerate);
         return;
@@ -127,7 +128,7 @@ export function registerModerationCommands(): void {
       const targetUserId = await ensureUser(targetJid);
       await ensureMembership(targetUserId, ctx.groupId);
 
-      const targetRole = await getUserRole(targetUserId, ctx.groupId);
+      const targetRole = await resolveRole(ctx.groupJid, targetJid, targetUserId, ctx.groupId);
       if (targetRole >= ctx.userRole) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.cannotModerate);
         return;
@@ -213,7 +214,7 @@ export function registerModerationCommands(): void {
       }
 
       const targetUserId = await ensureUser(targetJid);
-      const targetRole = await getUserRole(targetUserId, ctx.groupId);
+      const targetRole = await resolveRole(ctx.groupJid, targetJid, targetUserId, ctx.groupId);
       if (targetRole >= ctx.userRole) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.cannotModerate);
         return;
@@ -247,7 +248,7 @@ export function registerModerationCommands(): void {
       }
 
       const targetUserId = await ensureUser(targetJid);
-      const targetRole = await getUserRole(targetUserId, ctx.groupId);
+      const targetRole = await resolveRole(ctx.groupJid, targetJid, targetUserId, ctx.groupId);
       if (targetRole >= ctx.userRole) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.cannotModerate);
         return;
@@ -312,7 +313,7 @@ export function registerModerationCommands(): void {
       const banUntil = new Date(Date.now() + durationMs);
 
       const targetUserId = await ensureUser(targetJid);
-      const targetRole = await getUserRole(targetUserId, ctx.groupId);
+      const targetRole = await resolveRole(ctx.groupJid, targetJid, targetUserId, ctx.groupId);
       if (targetRole >= ctx.userRole) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.cannotModerate);
         return;

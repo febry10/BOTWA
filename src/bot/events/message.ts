@@ -1,15 +1,17 @@
 /**
  * Message Event Handler — Processes incoming messages through command system and moderation pipeline.
  */
-import { WASocket, proto } from '@whiskeysockets/baileys';
+import { WASocket, proto, normalizeMessageContent } from '@whiskeysockets/baileys';
 import { isGroupJid } from '../../utils/jid.js';
+import { getContextInfo } from '../../utils/message.js';
 import { ensureGroup, getGroupSettings } from '../../services/group.service.js';
-import { ensureUser, ensureMembership, getUserRole } from '../../services/member.service.js';
+import { ensureUser, ensureMembership } from '../../services/member.service.js';
 import { logMessageAction } from '../../services/logging.service.js';
+import { checkMuteStatus } from '../../services/mute.service.js';
 import { handleCommand, initializeCommands } from '../commands/index.js';
 import { runModerationPipeline, ModerationContext } from '../handlers/index.js';
 import { Role } from '../../config/permissions.js';
-import { getGroupMetadata } from '../client.js';
+import { resolveRole } from '../roles.js';
 import pino from 'pino';
 
 const logger = pino({ name: 'message-event' });
@@ -19,7 +21,7 @@ let commandsInitialized = false;
 /**
  * Extract text content from a message.
  */
-function extractText(message: proto.IMessage | null | undefined): string {
+export function extractText(message: proto.IMessage | null | undefined): string {
   if (!message) return '';
   return (
     message.conversation ||
@@ -35,9 +37,7 @@ function extractText(message: proto.IMessage | null | undefined): string {
  * Extract mentioned JIDs from a message.
  */
 function extractMentionedJids(message: proto.IMessage | null | undefined): string[] {
-  if (!message) return [];
-  const ctx = message.extendedTextMessage?.contextInfo;
-  return ctx?.mentionedJid || [];
+  return getContextInfo(message)?.mentionedJid || [];
 }
 
 /**
@@ -54,50 +54,6 @@ function getMessageType(message: proto.IMessage | null | undefined): string {
   if (message.contactMessage) return 'contact';
   if (message.locationMessage) return 'location';
   return 'other';
-}
-
-/**
- * Determine the user's role based on WhatsApp group metadata.
- */
-async function resolveRole(
-  sock: WASocket,
-  senderJid: string,
-  groupJid: string,
-  dbUserId: number,
-  dbGroupId: number
-): Promise<Role> {
-  // First check database role
-  const dbRole = await getUserRole(dbUserId, dbGroupId);
-  if (dbRole > Role.MEMBER) return dbRole;
-
-  // Fall back to WhatsApp group metadata
-  try {
-    const metadata = await getGroupMetadata(groupJid);
-    if (!metadata) return Role.MEMBER;
-
-    const senderNumber = senderJid.replace(/@.*$/, '').replace(/:\d+/, '');
-    const participant = metadata.participants.find(
-      p => p.id.replace(/@.*$/, '').replace(/:\d+/, '') === senderNumber
-    );
-
-    if (!participant) return Role.MEMBER;
-
-    if (participant.admin === 'superadmin') {
-      // Update DB role
-      const { updateMemberRole } = await import('../../services/member.service.js');
-      await updateMemberRole(dbUserId, dbGroupId, 'OWNER');
-      return Role.OWNER;
-    }
-    if (participant.admin === 'admin') {
-      const { updateMemberRole } = await import('../../services/member.service.js');
-      await updateMemberRole(dbUserId, dbGroupId, 'ADMIN');
-      return Role.ADMIN;
-    }
-  } catch (error) {
-    logger.debug({ error }, 'Failed to resolve role from metadata');
-  }
-
-  return Role.MEMBER;
 }
 
 /**
@@ -135,15 +91,19 @@ async function processMessage(sock: WASocket, msg: proto.IWebMessageInfo): Promi
   // Skip bot's own messages
   if (msg.key?.fromMe) return;
 
-  // Skip protocol messages (status updates, reactions, etc.)
-  if (!msg.message) return;
+  // Unwrap ephemeral / view-once wrappers
+  const content = normalizeMessageContent(msg.message);
+  if (!content) return;
+
+  // Skip protocol/reaction messages
+  if (content.protocolMessage || content.reactionMessage) return;
 
   const senderJid = msg.key?.participant || msg.key?.remoteJid;
   if (!senderJid) return;
 
-  const text = extractText(msg.message);
-  const mentionedJids = extractMentionedJids(msg.message);
-  const messageType = getMessageType(msg.message);
+  const text = extractText(content);
+  const mentionedJids = extractMentionedJids(content);
+  const messageType = getMessageType(content);
 
   // Ensure group and user exist in database
   const groupId = await ensureGroup(remoteJid);
@@ -154,37 +114,45 @@ async function processMessage(sock: WASocket, msg: proto.IWebMessageInfo): Promi
   const settings = await getGroupSettings(groupId);
 
   // Resolve user role
-  const userRole = await resolveRole(sock, senderJid, remoteJid, userId, groupId);
+  let userRole = Role.MEMBER;
+  try {
+    userRole = await resolveRole(remoteJid, senderJid, userId, groupId);
+  } catch (error) {
+    logger.debug({ error }, 'Failed to resolve role');
+  }
 
   // Log the message (action=NONE for normal messages)
   await logMessageAction(groupId, userId, messageType, text, 'NONE', null);
 
-  // ── Step 1: Try to handle as a command ──
-  if (text && text.length > 0) {
-    const isCommand = await handleCommand(
-      sock, msg, remoteJid, senderJid,
-      userId, groupId, userRole,
-      text, mentionedJids, settings
-    );
+  // ── Step 1: Try to handle as a command (muted members cannot use commands) ──
+  if (text) {
+    const muted = userRole < Role.MODERATOR && (await checkMuteStatus(userId, groupId)).muted;
+    if (!muted) {
+      const normalizedMsg: proto.IWebMessageInfo = { ...msg, message: content };
+      const isCommand = await handleCommand(
+        sock, normalizedMsg, remoteJid, senderJid,
+        userId, groupId, userRole,
+        text, mentionedJids, settings
+      );
 
-    if (isCommand) return; // Command handled, skip moderation
+      if (isCommand) return; // Command handled, skip moderation
+    }
   }
 
-  // ── Step 2: Run moderation pipeline ──
-  if (text && text.length > 0) {
-    const ctx: ModerationContext = {
-      sock,
-      message: msg,
-      groupJid: remoteJid,
-      senderJid,
-      userId,
-      groupId,
-      userRole,
-      text,
-      mentions: mentionedJids,
-      settings,
-    };
+  // ── Step 2: Run moderation pipeline (also for media so mutes/blacklists are enforced) ──
+  const ctx: ModerationContext = {
+    sock,
+    message: msg,
+    groupJid: remoteJid,
+    senderJid,
+    userId,
+    groupId,
+    userRole,
+    text,
+    messageType,
+    mentions: mentionedJids,
+    settings,
+  };
 
-    await runModerationPipeline(ctx);
-  }
+  await runModerationPipeline(ctx);
 }
