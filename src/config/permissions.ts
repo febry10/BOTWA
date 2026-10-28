@@ -46,6 +46,28 @@ export const COMMAND_PERMISSIONS: Record<string, Role> = {
   tagall: Role.MODERATOR,
   hidetag: Role.MODERATOR,
 
+  // Leveling & RPG
+  level: Role.MEMBER,
+  leaderboard: Role.MEMBER,
+  daily: Role.MEMBER,
+  berburu: Role.MEMBER,
+  duel: Role.MEMBER,
+  terima: Role.MEMBER,
+  tolak: Role.MEMBER,
+  leveling: Role.ADMIN,
+
+  // AI, media & tools
+  ai: Role.MEMBER,
+  resetai: Role.MEMBER,
+  download: Role.MEMBER,
+  ytmp3: Role.MEMBER,
+  tts: Role.MEMBER,
+
+  // Reminders
+  addreminder: Role.ADMIN,
+  reminders: Role.MEMBER,
+  delreminder: Role.ADMIN,
+
   // ── Moderation (MODERATOR) ──
   warn: Role.MODERATOR,
   warning: Role.MODERATOR,

@@ -1,9 +1,9 @@
 /**
  * Moderation Commands — !warn, !mute, !unmute, !kick, !ban, !unban, !tempban
  */
-import { registerCommand, CommandContext } from './index.js';
+import { registerCommand, CommandContext, getTargetJid } from './index.js';
 import { Role } from '../../config/permissions.js';
-import { sendMessage, deleteMessage, removeParticipant } from '../client.js';
+import { sendMessage, deleteMessage, removeParticipant, isBotAdmin } from '../client.js';
 import { renderTemplate } from '../../messages/index.js';
 import { WARNING_MESSAGES } from '../../messages/warning.js';
 import { MUTE_MESSAGES } from '../../messages/mute.js';
@@ -27,7 +27,7 @@ export function registerModerationCommands(): void {
     description: 'Berikan warning ke user',
     minRole: Role.MODERATOR,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -75,7 +75,7 @@ export function registerModerationCommands(): void {
     description: 'Lihat warning user',
     minRole: Role.MODERATOR,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -97,7 +97,7 @@ export function registerModerationCommands(): void {
     description: 'Reset warning user',
     minRole: Role.MODERATOR,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -119,7 +119,7 @@ export function registerModerationCommands(): void {
     description: 'Mute user',
     minRole: Role.MODERATOR,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -149,6 +149,9 @@ export function registerModerationCommands(): void {
         renderTemplate(MUTE_MESSAGES.muted, { user: mention, duration: durationDisplay, reason }),
         [targetJid]
       );
+      if (!(await isBotAdmin(ctx.groupJid))) {
+        await sendMessage(ctx.groupJid, '⚠️ Bot belum menjadi admin grup, jadi pesan member yang di-mute tidak bisa dihapus. Jadikan bot admin agar mute berfungsi.');
+      }
       await logAdminAction(ctx.groupId, ctx.userId, targetUserId, 'mute', { duration: durationStr, reason }, 'success');
     },
   });
@@ -160,7 +163,7 @@ export function registerModerationCommands(): void {
     description: 'Unmute user',
     minRole: Role.MODERATOR,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -186,7 +189,7 @@ export function registerModerationCommands(): void {
     description: 'Cek status mute user',
     minRole: Role.MODERATOR,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -207,7 +210,7 @@ export function registerModerationCommands(): void {
     description: 'Kick user dari grup',
     minRole: Role.ADMIN,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -241,7 +244,7 @@ export function registerModerationCommands(): void {
     description: 'Ban user (permanent)',
     minRole: Role.ADMIN,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -271,7 +274,7 @@ export function registerModerationCommands(): void {
     description: 'Unban user',
     minRole: Role.ADMIN,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -297,7 +300,7 @@ export function registerModerationCommands(): void {
     description: 'Ban sementara',
     minRole: Role.ADMIN,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;

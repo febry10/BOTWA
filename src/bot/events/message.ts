@@ -12,6 +12,12 @@ import { handleCommand, initializeCommands } from '../commands/index.js';
 import { runModerationPipeline, ModerationContext } from '../handlers/index.js';
 import { Role } from '../../config/permissions.js';
 import { resolveRole } from '../roles.js';
+import { isBotJid } from '../client.js';
+import { awardMessageXp } from '../../services/rpg.service.js';
+import { announceLevelChange } from '../leveling.js';
+import { isAiConfigured } from '../../ai/chat.js';
+import { replyWithAi } from '../commands/ai.js';
+import { checkCommandRate } from '../../moderation/spam/detector.js';
 import pino from 'pino';
 
 const logger = pino({ name: 'message-event' });
@@ -154,5 +160,28 @@ async function processMessage(sock: WASocket, msg: proto.IWebMessageInfo): Promi
     settings,
   };
 
-  await runModerationPipeline(ctx);
+  const result = await runModerationPipeline(ctx);
+  if (result.handled) return;
+
+  // ── Step 3: Leveling (silent unless the member levels up / ranks up) ──
+  if (settings.leveling.enabled) {
+    try {
+      const reward = await awardMessageXp(userId, groupId);
+      if (reward) await announceLevelChange(remoteJid, senderJid, reward, settings);
+    } catch (error) {
+      logger.error({ err: error }, 'Failed to award XP');
+    }
+  }
+
+  // ── Step 4: AI chat when the bot is mentioned or replied to ──
+  if (text && isAiConfigured()) {
+    const ctxInfo = getContextInfo(content);
+    const repliedToBot = !!ctxInfo?.quotedMessage && !!ctxInfo.participant && isBotJid(ctxInfo.participant);
+    if (mentionedJids.some(isBotJid) || repliedToBot) {
+      const limit = settings.command_rate_limit.member;
+      if (await checkCommandRate(senderJid, remoteJid, limit.max, limit.seconds)) {
+        await replyWithAi(sock, msg, remoteJid, senderJid, text);
+      }
+    }
+  }
 }

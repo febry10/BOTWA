@@ -57,6 +57,29 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
   const noAction: ModerationResult = { action: 'NONE', reason: null, handled: false };
 
   try {
+    // ── Active mute (enforced even when auto-moderation is off) ──
+    const muteStatus = await checkMuteStatus(ctx.userId, ctx.groupId);
+    if (muteStatus.muted) {
+      const deleted = await deleteMessage(ctx.groupJid, ctx.message.key!);
+      if (deleted) {
+        logger.info({ userId: ctx.userId, groupId: ctx.groupId }, 'Deleted muted user message');
+      } else {
+        logger.warn({ userId: ctx.userId, groupId: ctx.groupId }, 'Failed to delete muted user message');
+      }
+      await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'DELETE', 'User sedang di-mute');
+      return { action: 'DELETE', reason: 'Muted', handled: true };
+    }
+
+    // If mute just expired, send notification
+    if (muteStatus.expired) {
+      const mention = jidToMention(ctx.senderJid);
+      await sendMessage(
+        ctx.groupJid,
+        renderTemplate(MUTE_MESSAGES.autoUnmuted, { user: mention }),
+        [ctx.senderJid]
+      );
+    }
+
     // Skip if auto-moderation is disabled
     if (!ctx.settings.auto_moderation) return noAction;
 
@@ -78,29 +101,6 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
       await deleteMessage(ctx.groupJid, ctx.message.key!);
       await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'DELETE', 'User dalam blacklist');
       return { action: 'DELETE', reason: 'Blacklist', handled: true };
-    }
-
-    // ── Priority 4: Check active mute (soft mute enforcement) ──
-    const muteStatus = await checkMuteStatus(ctx.userId, ctx.groupId);
-    if (muteStatus.muted) {
-      const deleted = await deleteMessage(ctx.groupJid, ctx.message.key!);
-      if (deleted) {
-        logger.info({ userId: ctx.userId, groupId: ctx.groupId }, 'Deleted muted user message');
-      } else {
-        logger.warn({ userId: ctx.userId, groupId: ctx.groupId }, 'Failed to delete muted user message');
-      }
-      await logMessageAction(ctx.groupId, ctx.userId, ctx.messageType, ctx.text, 'DELETE', 'User sedang di-mute');
-      return { action: 'DELETE', reason: 'Muted', handled: true };
-    }
-
-    // If mute just expired, send notification
-    if (muteStatus.expired) {
-      const mention = jidToMention(ctx.senderJid);
-      await sendMessage(
-        ctx.groupJid,
-        renderTemplate(MUTE_MESSAGES.autoUnmuted, { user: mention }),
-        [ctx.senderJid]
-      );
     }
 
     // ── Dry run mode check ──
@@ -209,7 +209,7 @@ export async function runModerationPipeline(ctx: ModerationContext): Promise<Mod
 
     // ── Priority 8: Profanity ──
     if (ctx.settings.profanity.enabled) {
-      const profanityResult = await detectProfanity(ctx.text, ctx.groupId);
+      const profanityResult = await detectProfanity(ctx.text, ctx.groupId, ctx.settings.profanity.allowed_words);
       if (profanityResult.detected && profanityResult.matchedWord) {
         await recordProfanityViolation(
           ctx.userId, ctx.groupId,

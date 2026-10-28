@@ -80,22 +80,13 @@ export async function runMigrations(): Promise<void> {
       logger.info('No pending migrations');
     }
 
-    // Auto-seed default blacklist words if table is empty
-    const db = getDb();
-    const countRes = await db('blacklist_words').count('id as count').first();
-    const wordCount = parseInt(String(countRes?.count || '0'), 10);
-    if (wordCount === 0) {
-      logger.info('Seeding default profanity blacklist words...');
-      const seedPath = isDist
-        ? './seeds/default_blacklist_words.js'
-        : './seeds/default_blacklist_words.js';
-      try {
-        const { seed } = await import(seedPath);
-        await seed(db);
-        logger.info('Default profanity words seeded successfully');
-      } catch (seedErr) {
-        logger.warn({ seedErr }, 'Failed to auto-seed default blacklist words');
-      }
+    // Sync default profanity words (adds new defaults, keeps admin-added words)
+    try {
+      const { seed } = await import('./seeds/default_blacklist_words.js');
+      await seed(getDb());
+      logger.info('Default profanity words synced');
+    } catch (seedErr) {
+      logger.warn({ err: seedErr }, 'Failed to sync default blacklist words');
     }
   } catch (error) {
     logger.error({ err: error, migrationsDir }, 'Migration failed');

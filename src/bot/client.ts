@@ -38,6 +38,13 @@ export function getConnectionInfo(): { state: 'connecting' | 'open' | 'close'; q
   return { state: connectionState, qr: latestQr };
 }
 
+export function isBotJid(jid: string): boolean {
+  const number = jid.replace(/@.*$/, '').replace(/:\d+/, '');
+  return [sock?.user?.id, sock?.user?.lid]
+    .filter((id): id is string => !!id)
+    .some(id => id.replace(/@.*$/, '').replace(/:\d+/, '') === number);
+}
+
 export function invalidateGroupMetadata(groupJid: string): void {
   groupMetadataCache.delete(groupJid);
 }

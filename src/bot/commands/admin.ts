@@ -1,7 +1,7 @@
 /**
  * Admin Commands — !admins, !promote, !demote, !whitelist, !blacklist
  */
-import { registerCommand, CommandContext } from './index.js';
+import { registerCommand, CommandContext, getTargetJid } from './index.js';
 import { Role, roleToString } from '../../config/permissions.js';
 import { sendMessage, promoteParticipant, demoteParticipant } from '../client.js';
 import { renderTemplate } from '../../messages/index.js';
@@ -37,7 +37,7 @@ export function registerAdminCommands(): void {
     description: 'Promosikan user jadi admin',
     minRole: Role.OWNER,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -58,7 +58,7 @@ export function registerAdminCommands(): void {
     description: 'Turunkan admin jadi member',
     minRole: Role.OWNER,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -78,7 +78,7 @@ export function registerAdminCommands(): void {
     description: 'Whitelist user',
     minRole: Role.ADMIN,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -97,7 +97,7 @@ export function registerAdminCommands(): void {
     description: 'Hapus whitelist user',
     minRole: Role.ADMIN,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -134,7 +134,7 @@ export function registerAdminCommands(): void {
     description: 'Blacklist user',
     minRole: Role.ADMIN,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;
@@ -159,7 +159,7 @@ export function registerAdminCommands(): void {
     description: 'Hapus blacklist user',
     minRole: Role.ADMIN,
     handler: async (ctx: CommandContext) => {
-      const targetJid = ctx.mentionedJids[0];
+      const targetJid = getTargetJid(ctx);
       if (!targetJid) {
         await sendMessage(ctx.groupJid, ERROR_MESSAGES.noMention);
         return;

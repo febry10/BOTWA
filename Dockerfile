@@ -15,7 +15,9 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Install pg_dump for backups
-RUN apk add --no-cache postgresql-client ffmpeg font-dejavu
+RUN apk add --no-cache postgresql-client ffmpeg font-dejavu python3 \
+    && wget -qO /usr/local/bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
+    && chmod a+rx /usr/local/bin/yt-dlp
 
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev

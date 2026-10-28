@@ -20,6 +20,11 @@ import { registerConfigCommands } from './config.js';
 import { registerProfileCommands } from './profile.js';
 import { registerStickerCommands } from './sticker.js';
 import { registerFunCommands } from './fun.js';
+import { registerRpgCommands } from './rpg.js';
+import { registerAiCommands } from './ai.js';
+import { registerMediaCommands } from './media.js';
+import { registerReminderCommands } from './reminder.js';
+import { getContextInfo } from '../../utils/message.js';
 
 import pino from 'pino';
 
@@ -63,6 +68,15 @@ export function registerCommand(def: CommandDefinition): void {
 }
 
 /**
+ * Target user of a command: first mention, or the author of the replied-to message.
+ */
+export function getTargetJid(ctx: CommandContext): string | undefined {
+  if (ctx.mentionedJids[0]) return ctx.mentionedJids[0];
+  const info = getContextInfo(ctx.message.message);
+  return info?.quotedMessage ? info.participant ?? undefined : undefined;
+}
+
+/**
  * Look up a command by name or alias.
  */
 export function getCommand(name: string): CommandDefinition | undefined {
@@ -90,6 +104,10 @@ export function initializeCommands(): void {
   registerProfileCommands();
   registerStickerCommands();
   registerFunCommands();
+  registerRpgCommands();
+  registerAiCommands();
+  registerMediaCommands();
+  registerReminderCommands();
 
   logger.info({ commandCount: commands.size }, 'Commands initialized');
 }

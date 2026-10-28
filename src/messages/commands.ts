@@ -44,6 +44,27 @@ Ketik *{prefix}help* untuk bantuan.`,
 {prefix}tagall pesan — Tag semua member (mod)
 {prefix}hidetag pesan — Tag semua tanpa terlihat (mod)
 
+🎮 *Level & RPG*
+{prefix}level [@user] — Level, XP & rank
+{prefix}leaderboard — Top member teraktif
+{prefix}daily — Hadiah harian
+{prefix}berburu — Berpetualang cari koin & XP
+{prefix}duel @user [taruhan] — Duel simulasi
+{prefix}terima / {prefix}tolak — Jawab tantangan duel
+{prefix}leveling on/off/silent — Atur leveling (admin)
+
+🤖 *AI & Media*
+{prefix}ai pertanyaan — Ngobrol dengan AI (atau tag/reply bot)
+{prefix}resetai — Hapus riwayat obrolan AI
+{prefix}dl link — Unduh TikTok / IG Reels / YouTube
+{prefix}ytmp3 link — Unduh audio mp3
+{prefix}tts [kode bahasa] teks — Teks jadi suara
+
+📅 *Pengingat*
+{prefix}addreminder waktu | pesan — Tambah pengingat (admin)
+{prefix}reminders — Daftar pengingat
+{prefix}delreminder nomor — Hapus pengingat (admin)
+
 🛡️ *Moderasi*
 {prefix}warn @user — Warning
 {prefix}warnings @user — Lihat warning

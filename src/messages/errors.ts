@@ -25,5 +25,5 @@ export const ERROR_MESSAGES = {
 
   generalError: '❌ Terjadi kesalahan. Silakan coba lagi nanti.',
 
-  noMention: '❌ Silakan mention user yang ingin ditargetkan. Contoh: !warn @user',
+  noMention: '❌ Silakan mention user atau reply pesannya. Contoh: !warn @user',
 };
